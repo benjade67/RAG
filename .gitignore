@@ -3,3 +3,4 @@
 pytest-cache-files-*/
 __pycache__/
 *.pyc
+*.egg-info/
