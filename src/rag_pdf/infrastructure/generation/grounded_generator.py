@@ -120,6 +120,7 @@ class BaseLlmGroundedAnswerGenerator(AnswerGenerator):
 class MistralGroundedAnswerGenerator(BaseLlmGroundedAnswerGenerator):
     model: str = "mistral-small-latest"
     temperature: float = 0.1
+    system_prompt: str | None = None
     client: object | None = None
 
     def generate(self, question: str, passages: list[RetrievedPassage]) -> Answer:
@@ -139,7 +140,7 @@ class MistralGroundedAnswerGenerator(BaseLlmGroundedAnswerGenerator):
             model=self.model,
             temperature=self.temperature,
             messages=[
-                {"role": "system", "content": self._build_system_prompt()},
+                {"role": "system", "content": self.system_prompt or self._build_system_prompt()},
                 {"role": "user", "content": prompt},
             ],
         )
@@ -150,7 +151,12 @@ class MistralGroundedAnswerGenerator(BaseLlmGroundedAnswerGenerator):
             question=question,
             text=text,
             citations=citations,
-            metadata={"generator": "mistral", "model": self.model, "grounded": True},
+            metadata={
+                "generator": "mistral",
+                "model": self.model,
+                "grounded": True,
+                "temperature": self.temperature,
+            },
         )
 
     def _get_client(self) -> object:
@@ -174,6 +180,7 @@ class MistralGroundedAnswerGenerator(BaseLlmGroundedAnswerGenerator):
 class OllamaGroundedAnswerGenerator(BaseLlmGroundedAnswerGenerator):
     model: str = "llama3.1"
     temperature: float = 0.1
+    system_prompt: str | None = None
     base_url: str = "http://127.0.0.1:11434"
     timeout_seconds: int = 180
 
@@ -196,7 +203,7 @@ class OllamaGroundedAnswerGenerator(BaseLlmGroundedAnswerGenerator):
             },
             "keep_alive": "10m",
             "messages": [
-                {"role": "system", "content": self._build_system_prompt()},
+                {"role": "system", "content": self.system_prompt or self._build_system_prompt()},
                 {"role": "user", "content": self._build_user_prompt(question, passages)},
             ],
         }
@@ -207,7 +214,12 @@ class OllamaGroundedAnswerGenerator(BaseLlmGroundedAnswerGenerator):
             question=question,
             text=text,
             citations=citations,
-            metadata={"generator": "ollama", "model": self.model, "grounded": True},
+            metadata={
+                "generator": "ollama",
+                "model": self.model,
+                "grounded": True,
+                "temperature": self.temperature,
+            },
         )
 
     def _call_ollama(self, payload: dict) -> dict:

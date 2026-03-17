@@ -24,22 +24,36 @@ class IngestionService:
     def ingest(self, document: SourceDocument) -> int:
         regions = self.parser.parse(document)
         chunks = self.chunker.chunk(document, regions)
+        chunks = [chunk for chunk in chunks if chunk.text.strip()]
+        if not chunks:
+            return 0
         vectors = self.embeddings.embed([chunk.text for chunk in chunks])
         self.index.upsert(chunks, vectors)
         return len(chunks)
+
+    def reingest(self, document: SourceDocument) -> int:
+        self.index.delete([document.document_id])
+        return self.ingest(document)
 
 
 @dataclass(slots=True)
 class RetrievalService:
     vector_index: ChunkIndex
+    embeddings: EmbeddingProvider
     lexical_searcher: LexicalSearcher | None = None
     reranker: PassageReranker | None = None
 
-    def retrieve(self, query: str, top_k: int = 8) -> list[RetrievedPassage]:
-        candidates = self.vector_index.search(query, top_k=top_k)
+    def retrieve(
+        self,
+        query: str,
+        top_k: int = 8,
+        document_ids: list[str] | None = None,
+    ) -> list[RetrievedPassage]:
+        query_vector = self.embeddings.embed([query])[0]
+        candidates = self.vector_index.search(query_vector, top_k=top_k, document_ids=document_ids)
 
         if self.lexical_searcher is not None:
-            lexical = self.lexical_searcher.search(query, top_k=top_k)
+            lexical = self.lexical_searcher.search_lexical(query, top_k=top_k, document_ids=document_ids)
             candidates = self._merge(candidates, lexical)
 
         if self.reranker is not None:
@@ -70,6 +84,11 @@ class QuestionAnsweringService:
     retrieval: RetrievalService
     generator: AnswerGenerator
 
-    def answer(self, question: str, top_k: int = 8) -> Answer:
-        passages = self.retrieval.retrieve(question, top_k=top_k)
+    def answer(
+        self,
+        question: str,
+        top_k: int = 8,
+        document_ids: list[str] | None = None,
+    ) -> Answer:
+        passages = self.retrieval.retrieve(question, top_k=top_k, document_ids=document_ids)
         return self.generator.generate(question, passages)

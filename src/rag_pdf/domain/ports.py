@@ -35,13 +35,27 @@ class ChunkIndex(ABC):
         """Store chunks and vectors in the retrieval backend."""
 
     @abstractmethod
-    def search(self, query: str, top_k: int) -> list[RetrievedPassage]:
-        """Retrieve candidate chunks from the index."""
+    def search(
+        self,
+        query_embedding: list[float],
+        top_k: int,
+        document_ids: list[str] | None = None,
+    ) -> list[RetrievedPassage]:
+        """Retrieve candidate chunks from the index using a query embedding."""
+
+    @abstractmethod
+    def delete(self, document_ids: list[str]) -> None:
+        """Delete indexed chunks for the given document ids."""
 
 
 class LexicalSearcher(ABC):
     @abstractmethod
-    def search(self, query: str, top_k: int) -> list[RetrievedPassage]:
+    def search_lexical(
+        self,
+        query: str,
+        top_k: int,
+        document_ids: list[str] | None = None,
+    ) -> list[RetrievedPassage]:
         """Retrieve keyword-oriented results."""
 
 
